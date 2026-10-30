@@ -1,0 +1,9 @@
+Priya Raman is the VP of Engineering at Helios Robotics.
+
+Marcus Lee is the director of the Platform Division. Marcus Lee reports to Priya Raman.
+
+Elena Petrova is the director of the Perception Division. Elena Petrova reports to Priya Raman.
+
+Tomas Weber is a senior engineer in the Perception Division. Tomas Weber reports to Elena Petrova.
+
+Aisha Khan is a staff engineer in the Platform Division. Aisha Khan reports to Marcus Lee.

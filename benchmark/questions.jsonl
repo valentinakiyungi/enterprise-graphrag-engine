@@ -1,0 +1,12 @@
+{"id": "q01", "question": "Who is the manager of the person who leads Project Atlas?", "reference": "Elena Petrova", "answerable": true}
+{"id": "q02", "question": "Which division owns the messaging service that Project Atlas depends on?", "reference": "The Platform Division", "answerable": true}
+{"id": "q03", "question": "Who is the director of the division that owns the service Project Atlas depends on?", "reference": "Marcus Lee", "answerable": true}
+{"id": "q04", "question": "Which policy required the migration of the datastore used by the Orbit Messaging Service, and who leads the office that enforces it?", "reference": "The European Data Residency Policy, enforced by the Compliance Office led by Sofia Marin", "answerable": true}
+{"id": "q05", "question": "Who heads the team that managed the certificate which caused the outage of the service Project Atlas depends on?", "reference": "Daniel Okoye", "answerable": true}
+{"id": "q06", "question": "Who founded the company that supplies lidar units for Project Atlas?", "reference": "Ingrid Solberg", "answerable": true}
+{"id": "q07", "question": "In which region is the datastore used by the messaging service that Project Atlas relies on hosted?", "reference": "The Frankfurt region", "answerable": true}
+{"id": "q08", "question": "Which executive does the manager of the lead of Project Atlas ultimately report to?", "reference": "Priya Raman", "answerable": true}
+{"id": "q09", "question": "Who does the leader of Project Beacon report to, and who does that person report to?", "reference": "Aisha Khan reports to Marcus Lee, who reports to Priya Raman", "answerable": true}
+{"id": "q10", "question": "What is the budget of Project Atlas?", "reference": "", "answerable": false}
+{"id": "q11", "question": "Does Project Beacon depend on the Orbit Messaging Service?", "reference": "", "answerable": false}
+{"id": "q12", "question": "Who is the CEO of Helios Robotics?", "reference": "", "answerable": false}

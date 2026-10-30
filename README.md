@@ -1,4 +1,4 @@
-# Enterprise GraphRAG Engine 
+# Enterprise GraphRAG Engine
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-orange)
@@ -6,59 +6,96 @@
 ![Ragas](https://img.shields.io/badge/Evaluation-Ragas-purple)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-A production-grade, state-of-the-art **Graph Retrieval-Augmented Generation (GraphRAG)** engine built with **LangGraph** and **FastAPI**. Designed for enterprise knowledge bases, this architecture combines semantic vector search with knowledge graph traversal to solve multi-hop reasoning challenges, complete with an automated evaluation loop.
+A **Graph Retrieval-Augmented Generation (GraphRAG)** service built with **LangGraph** and **FastAPI**. It combines semantic vector search (PostgreSQL + pgvector) with knowledge-graph traversal (Neo4j) to answer multi-hop questions that plain vector RAG misses, and scores every answer with **Ragas** (faithfulness, context precision).
 
----
-
-##  System Architecture & Workflow
-
-The application runs on a state-machine workflow orchestrated via LangGraph, ensuring strict execution boundaries and automated quality checks:
+## How it works
 
 ```mermaid
 graph TD
-    A[Incoming Query] --> B[Vector Retrieval Node]
-    B --> C[Graph Traversal Node]
-    C --> D[Synthesized Answer Node]
-    D --> E[Ragas Evaluation Node]
-    E --> F[API Response]
+    A[Query] --> B[Vector retrieval - pgvector]
+    B -->|mode = hybrid| C[Extract query entities - LLM]
+    C --> D[Graph traversal - Neo4j, N hops]
+    D --> E[Fetch source chunks of graph facts]
+    B -->|mode = vector| F
+    E --> F[Build context]
+    F --> G[Grounded answer - LLM]
+    G -->|evaluate = true| H[Ragas: faithfulness + context precision]
+    G --> I[Response]
+    H --> I
 ```
 
-Vector Retrieval: Fetches semantically similar chunks from a vector store using dense embeddings.
+**Ingestion:** each document is chunked and embedded into Postgres; an LLM extracts `(subject, predicate, object)` triples from every chunk into Neo4j. Each graph edge remembers the chunk it came from.
 
-Graph Traversal: Extracts related entities and relational edges to preserve context across complex documents.
+**Querying:** vector search finds the closest chunks. In `hybrid` mode the question's entities are located in the graph, facts within `GRAPH_MAX_HOPS` are collected, and the source chunks of those facts (the "second hop" that vector similarity never surfaces) are added to the context. The answer prompt forbids outside knowledge and requires an explicit "I don't know" when the context is insufficient. `mode: "vector"` is the plain-RAG baseline used for comparison.
 
-Synthesis: Merges dual context streams into a grounded, comprehensive LLM generation.
+## Quick start (Docker Compose)
 
-Automated Evaluation: Programmatically assesses context precision and answer faithfulness using Ragas.
+Free, fully local (no OpenAI account): install [Ollama](https://ollama.com), then
 
-##  Tech Stack
-Orchestration: LangGraph, LangChain
+```bash
+ollama pull qwen2.5:7b
+ollama pull nomic-embed-text
+git clone https://github.com/valentinakiyungi/enterprise-graphrag-engine.git
+cd enterprise-graphrag-engine
+cp env.free.example .env   # replace the three change-me values
+docker compose up --build   # Postgres + Neo4j + API on http://localhost:8000
+```
 
-API Framework: FastAPI, Uvicorn
+With OpenAI instead: `cp .env.example .env` and set `OPENAI_API_KEY` plus the passwords. Any OpenAI-compatible provider also works through `OPENAI_BASE_URL`.
 
-Evaluation: Ragas (Retrieval-Augmented Generation Assessment)
+Interactive docs: http://localhost:8000/docs
 
-Databases: PostgreSQL (pgvector), Neo4j (Graph storage)
+```bash
+# ingest
+curl -X POST localhost:8000/ingest -H 'Content-Type: application/json' -d '{
+  "documents": [
+    {"doc_id": "projects", "text": "Tomas Weber leads Project Atlas."},
+    {"doc_id": "people",   "text": "Tomas Weber reports to Elena Petrova."}
+  ]}'
 
-LLM Integration: OpenAI API / Custom LLM Gateways
+# query (add -H "X-API-Key: ..." if API_KEY is set)
+curl -X POST localhost:8000/query -H 'Content-Type: application/json' -d '{
+  "query": "Who is the manager of the person who leads Project Atlas?",
+  "mode": "hybrid", "evaluate": true}'
+```
 
-##  Getting Started Locally
-Prerequisites
-Python 3.10 or higher
-Git
+## API
 
-##  Installation & Setup
+| Endpoint | Description |
+|---|---|
+| `POST /ingest` | Chunk, embed and graph-index documents (re-ingesting a `doc_id` replaces it) |
+| `POST /query` | `{query, mode: hybrid\|vector, top_k?, evaluate?}` returns the answer, graph facts, sources, Ragas scores, `low_confidence` flag |
+| `GET /health` | Liveness (no auth) |
+| `GET /ready` | Readiness: checks Postgres and Neo4j |
+| `GET /stats` | Chunk, entity and relationship counts |
 
-1. **Clone the repository:**
-   ```bash
-   git clone github repository
-   cd enterprise-graphrag-engine
+If `API_KEY` is set, all endpoints except `/health` and `/ready` require an `X-API-Key` header. Configuration lives in `.env.example`.
 
-##  API Usage
-Once the server is running, access the interactive Swagger UI documentation at:
-http://127.0.0.1:8000/docs
+## Benchmarking vector RAG vs GraphRAG
 
+`benchmark/` contains a small fictional corpus and 12 questions (9 multi-hop, 3 unanswerable).
 
-##  📄 License
-Distributed under the MIT License. See LICENSE for more information.
+```bash
+docker compose up -d
+docker compose run --rm api python -m benchmark.run
+```
 
+It runs every question in both modes and reports answer accuracy (LLM judge; for unanswerable questions, correct = declined), Ragas faithfulness and context precision, and hallucination rate (answered, not declined, faithfulness below `FAITHFULNESS_THRESHOLD`), plus relative change of hybrid vs vector. The table is printed, and `results.json` / `results.md` are written to `benchmark/results/` (inside the container when run via compose).
+
+The sample set is small, so treat its numbers as a smoke test, not a result. For figures you can cite, replace `benchmark/corpus` and `benchmark/questions.jsonl` with your own documents and a larger question set, and quote the numbers your run produces.
+
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest        # no databases or API key needed: tests use in-memory fakes
+uvicorn app.main:app --reload   # needs running Postgres + Neo4j (docker compose up postgres neo4j)
+```
+
+## Deployment
+
+See [DEPLOY.md](DEPLOY.md).
+
+## License
+
+MIT
