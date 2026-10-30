@@ -1,0 +1,7 @@
+The Orbit Messaging Service is owned by the Platform Division.
+
+The Orbit Messaging Service stores its events in the Cascade Datastore.
+
+The Cascade Datastore was migrated to the Frankfurt region in 2025. The migration was required by the European Data Residency Policy.
+
+The European Data Residency Policy is enforced by the Compliance Office. The Compliance Office is led by Sofia Marin.

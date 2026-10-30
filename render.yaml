@@ -1,0 +1,29 @@
+# Render Blueprint: API + managed Postgres (pgvector). Neo4j is external (Neo4j Aura).
+# NOTE: untested; check plan names against Render's current pricing page before applying.
+databases:
+  - name: graphrag-postgres
+    databaseName: graphrag
+    user: graphrag
+    plan: basic-256mb
+
+services:
+  - type: web
+    name: enterprise-graphrag-engine
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: POSTGRES_DSN
+        fromDatabase:
+          name: graphrag-postgres
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: NEO4J_URI          # e.g. neo4j+s://xxxxxxxx.databases.neo4j.io
+        sync: false
+      - key: NEO4J_USER
+        sync: false
+      - key: NEO4J_PASSWORD
+        sync: false
+      - key: API_KEY
+        generateValue: true

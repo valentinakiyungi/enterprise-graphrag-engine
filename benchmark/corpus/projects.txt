@@ -1,0 +1,5 @@
+Project Atlas is a warehouse navigation system for autonomous robots. Project Atlas is led by Tomas Weber.
+
+Project Atlas depends on the Orbit Messaging Service for robot-to-server communication.
+
+Project Beacon is a fleet monitoring dashboard. Project Beacon is led by Aisha Khan.
