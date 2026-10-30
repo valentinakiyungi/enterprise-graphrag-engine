@@ -1,23 +1,25 @@
-# Render Blueprint: API + managed Postgres (pgvector). Neo4j is external (Neo4j Aura).
-# NOTE: untested; check plan names against Render's current pricing page before applying.
-databases:
-  - name: graphrag-postgres
-    databaseName: graphrag
-    user: graphrag
-    plan: basic-256mb
-
+# Render Blueprint: free web service. Databases live elsewhere (see DEPLOY.md, "Free hosting"):
+#   Postgres + pgvector -> Neon free plan, Neo4j -> Neo4j AuraDB Free.
+# Free web services spin down after 15 minutes idle and are not meant for production.
+# NOTE: untested; verify against Render's current docs before applying.
 services:
   - type: web
     name: enterprise-graphrag-engine
     runtime: docker
-    plan: starter
+    plan: free
     healthCheckPath: /health
     envVars:
-      - key: POSTGRES_DSN
-        fromDatabase:
-          name: graphrag-postgres
-          property: connectionString
       - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL    # only for a non-OpenAI provider
+        sync: false
+      - key: CHAT_MODEL
+        sync: false
+      - key: EMBEDDING_MODEL
+        sync: false
+      - key: EMBEDDING_DIM
+        sync: false
+      - key: POSTGRES_DSN       # Neon connection string
         sync: false
       - key: NEO4J_URI          # e.g. neo4j+s://xxxxxxxx.databases.neo4j.io
         sync: false

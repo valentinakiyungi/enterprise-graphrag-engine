@@ -1,0 +1,7 @@
+# Versions pip settled on in a successful install. Pinning these stops pip from spending
+# minutes backtracking through old releases of openai/instructor (ragas dependencies).
+openai==3.3.0
+instructor==1.17.0
+jiter==0.14.0
+rich==14.3.4
+docstring-parser==0.18.0

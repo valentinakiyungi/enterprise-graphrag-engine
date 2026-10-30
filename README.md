@@ -30,12 +30,18 @@ graph TD
 
 ## Quick start (Docker Compose)
 
+Free, fully local (no OpenAI account): install [Ollama](https://ollama.com), then
+
 ```bash
+ollama pull qwen2.5:7b
+ollama pull nomic-embed-text
 git clone https://github.com/valentinakiyungi/enterprise-graphrag-engine.git
 cd enterprise-graphrag-engine
-cp .env.example .env        # set OPENAI_API_KEY and both database passwords
+cp env.free.example .env   # replace the three change-me values
 docker compose up --build   # Postgres + Neo4j + API on http://localhost:8000
 ```
+
+With OpenAI instead: `cp .env.example .env` and set `OPENAI_API_KEY` plus the passwords. Any OpenAI-compatible provider also works through `OPENAI_BASE_URL`.
 
 Interactive docs: http://localhost:8000/docs
 

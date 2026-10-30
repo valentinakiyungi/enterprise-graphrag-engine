@@ -65,7 +65,8 @@ def build_services(settings: Optional[Settings] = None) -> Services:
   embeddings = get_embeddings(settings)
   evaluator = RagasEvaluator(lambda: get_chat_model(settings))
   ingestor = Ingestor(
-      vector_store, graph_store, embeddings, llm, settings.chunk_size, settings.chunk_overlap
+      vector_store, graph_store, embeddings, llm, settings.chunk_size, settings.chunk_overlap,
+      settings.structured_output_method,
   )
   graph = build_graph(
       settings=settings, vector_store=vector_store, graph_store=graph_store,

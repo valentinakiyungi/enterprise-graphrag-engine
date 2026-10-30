@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from langgraph.graph import END, StateGraph
 
+from app.llm import structured
 from app.schemas import EntityList
 from app.state import GraphRAGState
 from app.text import REFUSAL_TEXT, normalize_entity
@@ -40,9 +41,8 @@ def build_graph(*, settings, vector_store, graph_store, embeddings, llm, evaluat
 
   def extract_entities(state: GraphRAGState) -> Dict[str, Any]:
     try:
-      result = llm.with_structured_output(EntityList).invoke(
-          [("system", ENTITY_PROMPT), ("human", state["query"])]
-      )
+      extractor = structured(llm, EntityList, settings.structured_output_method)
+      result = extractor.invoke([("system", ENTITY_PROMPT), ("human", state["query"])])
       return {"entities": [e for e in result.entities if e.strip()]}
     except Exception:
       logger.exception("Query entity extraction failed; falling back to vector-only context")

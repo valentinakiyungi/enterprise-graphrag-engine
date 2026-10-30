@@ -1,13 +1,15 @@
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PYTHONUNBUFFERED=1
 
 WORKDIR /srv
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements.txt constraints.txt ./
+# The cache mount keeps downloaded wheels between builds, so after a network failure a
+# retry resumes instead of starting over. Long timeout + retries help on slow connections.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --default-timeout=120 --retries=10 -r requirements.txt
 
 COPY app ./app
 COPY benchmark ./benchmark

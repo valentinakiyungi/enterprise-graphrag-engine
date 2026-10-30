@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+from app.llm import structured
 from app.schemas import TripleList
 from app.text import chunk_text, normalize_entity
 
@@ -22,19 +23,29 @@ EXTRACTION_PROMPT = (
 
 class Ingestor:
 
-  def __init__(self, vector_store, graph_store, embeddings, llm, chunk_size: int = 800, chunk_overlap: int = 100):
+  def __init__(
+      self,
+      vector_store,
+      graph_store,
+      embeddings,
+      llm,
+      chunk_size: int = 800,
+      chunk_overlap: int = 100,
+      structured_method: str = "",
+  ):
     self.vector_store = vector_store
     self.graph_store = graph_store
     self.embeddings = embeddings
     self.llm = llm
     self.chunk_size = chunk_size
     self.chunk_overlap = chunk_overlap
+    self.structured_method = structured_method
 
   def extract_triples(self, chunk: str) -> Optional[List[Dict[str, str]]]:
     """Returns triples, or None if extraction failed (so callers can count failures)."""
     try:
-      structured = self.llm.with_structured_output(TripleList)
-      result = structured.invoke([("system", EXTRACTION_PROMPT), ("human", chunk)])
+      extractor = structured(self.llm, TripleList, self.structured_method)
+      result = extractor.invoke([("system", EXTRACTION_PROMPT), ("human", chunk)])
     except Exception:
       logger.exception("Triple extraction failed")
       return None

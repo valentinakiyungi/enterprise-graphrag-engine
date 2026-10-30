@@ -149,7 +149,7 @@ class FakeLLM:
     self.triple_script = triple_script or []
     self.last_prompt: Optional[str] = None
 
-  def with_structured_output(self, schema):
+  def with_structured_output(self, schema, **kwargs):
     return _Structured(self, schema)
 
   def invoke(self, messages):

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
   chat_model: str = "gpt-4o-mini"
   embedding_model: str = "text-embedding-3-small"
   embedding_dim: int = 1536
+  llm_timeout: float = 120.0  # seconds; local models are slow, raise this for them
+  # How structured (JSON) output is requested: "" = library default, or "json_schema",
+  # "function_calling", "json_mode". Local models differ in which one they handle well.
+  structured_output_method: str = ""
 
   # PostgreSQL (pgvector)
   postgres_dsn: str = "postgresql://graphrag:graphrag@localhost:5432/graphrag"

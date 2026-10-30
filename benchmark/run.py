@@ -17,6 +17,7 @@ from typing import Any, Dict, List
 from pydantic import BaseModel
 
 from app.config import get_settings
+from app.llm import structured
 from app.services import build_services
 from app.text import is_refusal
 from benchmark.metrics import compare, summarize, to_markdown
@@ -39,8 +40,8 @@ def load_questions(path: Path) -> List[Dict[str, Any]]:
   return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
 
-def judge(llm, question: str, reference: str, answer: str) -> bool:
-  verdict = llm.with_structured_output(Verdict).invoke([
+def judge(llm, question: str, reference: str, answer: str, method: str = "") -> bool:
+  verdict = structured(llm, Verdict, method).invoke([
       ("system", JUDGE_PROMPT),
       ("human", f"Question: {question}\nReference answer: {reference}\nCandidate answer: {answer}"),
   ])
@@ -79,7 +80,9 @@ def main() -> None:
         answer = state["generation"]
         refused = is_refusal(answer)
         if q["answerable"]:
-          correct = (not refused) and judge(services.llm, q["question"], q["reference"], answer)
+          correct = (not refused) and judge(
+              services.llm, q["question"], q["reference"], answer, settings.structured_output_method
+          )
         else:
           correct = refused  # the only right answer to an unanswerable question is to decline
         ev = state.get("evaluation") or {}
