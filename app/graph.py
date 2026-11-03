@@ -1,53 +1,103 @@
+"""LangGraph workflow: hybrid retrieval with Ragas-gated self-correction.
+
+::
+
+                    ┌──────────────┐
+                    │ analyze_query│
+                    └──────┬───────┘
+             ┌─────────────┴─────────────┐      (parallel fan-out)
+     ┌───────▼────────┐          ┌───────▼───────┐
+     │ vector_retrieve│          │ graph_retrieve│
+     │ pgvector + FTS │          │ Neo4j k-hop   │
+     └───────┬────────┘          └───────┬───────┘
+             └─────────────┬─────────────┘      (join)
+                    ┌──────▼───────┐
+                    │ fuse_context │  weighted RRF + labelled context
+                    └──────┬───────┘
+                    ┌──────▼────────┐
+           ┌───────►│generate_answer│
+           │        └──────┬────────┘
+           │        ┌──────▼────────┐
+           │        │evaluate_answer│  Ragas faithfulness + context precision
+           │        └──────┬────────┘
+           │    regenerate │ expand          end
+           │   ┌───────────┼───────────┐──────────► END
+  ┌────────┴───▼─────┐  ┌──▼──────────────┐
+  │prepare_regenerate│  │expand_retrieval │──► vector_retrieve + graph_retrieve
+  └──────────────────┘  └─────────────────┘
+"""
+
+from __future__ import annotations
+
+from langgraph.graph import END, START, StateGraph
+
+from app.nodes import make_nodes, route_after_evaluation
 from app.state import GraphRAGState
-from langgraph.graph import END, StateGraph
 
 
-def vector_retrieval_node(state: GraphRAGState):
-  print("---EXECUTING VECTOR RETRIEVAL---")
-  # Placeholder: Integrate pgvector or vector store search here
-  return {"vector_context": ["Sample vector chunk matching enterprise policy."]}
+def build_graph(svc):
+    nodes = make_nodes(svc)
+    wf = StateGraph(GraphRAGState)
+    for name, fn in nodes.items():
+        wf.add_node(name, fn)
+
+    wf.add_edge(START, "analyze_query")
+    wf.add_edge("analyze_query", "vector_retrieve")
+    wf.add_edge("analyze_query", "graph_retrieve")
+    wf.add_edge(["vector_retrieve", "graph_retrieve"], "fuse_context")
+    wf.add_edge("fuse_context", "generate_answer")
+    wf.add_edge("generate_answer", "evaluate_answer")
+    wf.add_conditional_edges(
+        "evaluate_answer",
+        route_after_evaluation(svc.settings),
+        {"end": END, "expand": "expand_retrieval", "regenerate": "prepare_regeneration"},
+    )
+    wf.add_edge("expand_retrieval", "vector_retrieve")
+    wf.add_edge("expand_retrieval", "graph_retrieve")
+    wf.add_edge("prepare_regeneration", "generate_answer")
+    return wf.compile()
 
 
-def graph_traversal_node(state: GraphRAGState):
-  print("---EXECUTING GRAPH TRAVERSAL---")
-  # Placeholder: Integrate Neo4j or relational graph query here
-  return {"graph_context": ["Sample entity relationship edge context."]}
+def initial_state(
+    query: str,
+    mode: str = "hybrid",
+    *,
+    top_k: int,
+    max_hops: int,
+    evaluate: bool,
+    reference: str | None = None,
+) -> GraphRAGState:
+    return GraphRAGState(
+        query=query,
+        mode=mode,  # type: ignore[typeddict-item]
+        top_k=top_k,
+        max_hops=max_hops,
+        evaluate=evaluate,
+        reference=reference,
+        attempts=0,
+        correction="",
+        unsupported_claims=[],
+        trace=[],
+    )
 
 
-def generate_answer_node(state: GraphRAGState):
-  print("---GENERATING SYNTHESIZED ANSWER---")
-  combined = (
-      "\n".join(state["vector_context"])
-      + "\n"
-      + "\n".join(state["graph_context"])
-  )
-  return {
-      "combined_context": combined,
-      "generation": (
-          "Synthesized enterprise response based on hybrid graph and vector"
-          " context."
-      ),
-  }
-
-
-def evaluate_ragas_node(state: GraphRAGState):
-  print("---RUNNING RAGAS EVALUATION METRICS---")
-  # Placeholder: Compute faithfulness and context precision using Ragas
-  return {"faithfulness_score": 0.96}
-
-
-# Construct Workflow Graph
-workflow = StateGraph(GraphRAGState)
-
-workflow.add_node("vector_retrieval", vector_retrieval_node)
-workflow.add_node("graph_traversal", graph_traversal_node)
-workflow.add_node("synthesize_answer", generate_answer_node)
-workflow.add_node("evaluate_output", evaluate_ragas_node)
-
-workflow.set_entry_point("vector_retrieval")
-workflow.add_edge("vector_retrieval", "graph_traversal")
-workflow.add_edge("graph_traversal", "synthesize_answer")
-workflow.add_edge("synthesize_answer", "evaluate_output")
-workflow.add_edge("evaluate_output", END)
-
-app_graph = workflow.compile()
+def run_query(
+    svc,
+    query: str,
+    mode: str = "hybrid",
+    *,
+    top_k: int | None = None,
+    max_hops: int | None = None,
+    evaluate: bool | None = None,
+    reference: str | None = None,
+) -> GraphRAGState:
+    s = svc.settings
+    state = initial_state(
+        query,
+        mode,
+        top_k=top_k or s.vector_top_k,
+        max_hops=max_hops or s.graph_max_hops,
+        evaluate=s.evaluate_on_query if evaluate is None else evaluate,
+        reference=reference,
+    )
+    return svc.workflow.invoke(state, {"recursion_limit": 50})

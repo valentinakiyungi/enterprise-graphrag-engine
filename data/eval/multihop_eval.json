@@ -1,0 +1,86 @@
+[
+  {
+    "id": "mh-01",
+    "type": "multi_hop",
+    "question": "Who is the executive sponsor of the cloud vendor that hosts the platform behind the Customer 360 Dashboard?",
+    "reference": "Marcus Bell (CFO). The Customer 360 Dashboard reads from the Helios Data Platform, Helios runs on Stratus Cloud, and Stratus Cloud's executive sponsor is Marcus Bell."
+  },
+  {
+    "id": "mh-02",
+    "type": "multi_hop",
+    "question": "Who leads the team that owns the platform the Customer 360 Dashboard depends on, and who does that person report to?",
+    "reference": "Amara Okafor leads the Data Platform Team, which owns Helios; she reports to CTO Daniel Reyes."
+  },
+  {
+    "id": "mh-03",
+    "type": "multi_hop",
+    "question": "Did INC-2291 breach the availability SLA of the vendor hosting Helios?",
+    "reference": "Yes. Helios runs on Stratus Cloud, whose SLA is 99.95% monthly uptime per region; the 4 hour 10 minute eu-west outage on 14 May 2026 is well beyond the roughly 22 minutes of downtime that SLA allows in a month, so it was breached and Kestrel is entitled to a 10% service credit."
+  },
+  {
+    "id": "mh-04",
+    "type": "multi_hop",
+    "question": "Which policy governs where the data in the platform affected by INC-2291 must be stored, and what does it require?",
+    "reference": "DCP-7, the Data Classification and Residency Policy: Helios stores Restricted data, which must be stored and processed only in EU regions and encrypted at rest with customer-managed keys."
+  },
+  {
+    "id": "mh-05",
+    "type": "multi_hop",
+    "question": "If the Atlas Billing Service suffers a full outage, who must be notified and within what time?",
+    "reference": "Atlas is a Tier 1 system, so a full outage is a P1 incident under IRP-3; the CISO, Grace Mwangi, must be notified within 30 minutes of detection."
+  },
+  {
+    "id": "mh-06",
+    "type": "multi_hop",
+    "question": "Project Meridian moves billing data onto which platform, and who leads the team that owns that platform?",
+    "reference": "The Helios Data Platform, owned by the Data Platform Team led by Amara Okafor."
+  },
+  {
+    "id": "mh-07",
+    "type": "multi_hop",
+    "question": "When does the contract of the payment processor used by the Atlas Billing Service renew, and who manages that vendor relationship?",
+    "reference": "Atlas uses QuantaPay, whose contract renews on 1 January 2027 unless cancelled with 90 days' notice; the relationship manager is Sofia Lindqvist (executive sponsor Marcus Bell)."
+  },
+  {
+    "id": "mh-08",
+    "type": "multi_hop",
+    "question": "Which team is responsible for remediating INC-2291 and who is its leader?",
+    "reference": "The Data Platform Team, because it owns the affected Helios Data Platform; it is led by Amara Okafor."
+  },
+  {
+    "id": "mh-09",
+    "type": "multi_hop",
+    "question": "Who reviews privileged access to the system that Project Meridian is migrating, and how often?",
+    "reference": "Security Operations (led by Tomás Herrera) reviews privileged access to production systems such as Atlas quarterly under ACP-2."
+  },
+  {
+    "id": "mh-10",
+    "type": "multi_hop",
+    "question": "Which executive is ultimately accountable for the team that maintains the Customer 360 Dashboard?",
+    "reference": "Lena Fischer, the Chief Data Officer; the dashboard is maintained by the Customer Analytics Team led by Priya Nair, who reports to her."
+  },
+  {
+    "id": "sh-01",
+    "type": "single_hop",
+    "question": "Who leads the Customer Analytics Team?",
+    "reference": "Priya Nair."
+  },
+  {
+    "id": "sh-02",
+    "type": "single_hop",
+    "question": "What is Stratus Cloud's availability SLA?",
+    "reference": "99.95% monthly uptime per region, with 10% service credits for breaches."
+  },
+  {
+    "id": "sh-03",
+    "type": "single_hop",
+    "question": "How long did INC-2291 last?",
+    "reference": "4 hours 10 minutes, from 09:05 to 13:15 EAT on 14 May 2026."
+  },
+  {
+    "id": "sh-04",
+    "type": "single_hop",
+    "question": "What is the budget of Project Meridian?",
+    "reference": "USD 1.2 million."
+  }
+]

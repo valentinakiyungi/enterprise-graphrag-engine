@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GraphRAG Console</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #5f6b7a; --line: #e2e6eb;
+    --accent: #2f5bea; --accent-ink: #ffffff; --good: #1f8a4c; --warn: #b7791f; --bad: #c0392b;
+    --chip: #eef2ff; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1216; --panel: #171b21; --ink: #e7eaee; --muted: #9aa5b1; --line: #2a3038;
+      --accent: #6b8cff; --accent-ink: #0b0d10; --chip: #1f2633;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+           padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header .meta { color: var(--muted); font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  main { max-width: 1180px; margin: 0 auto; padding: 18px 16px 60px; display: grid;
+         grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 12px; }
+  textarea, input, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+         border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+  textarea { resize: vertical; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .row > * { flex: 0 0 auto; width: auto; }
+  label.inline { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  label.inline input { width: auto; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer;
+           background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  button.secondary { background: var(--chip); color: var(--ink); font-weight: 500; }
+  button:disabled { opacity: .55; cursor: progress; }
+  .answer { white-space: pre-wrap; margin-top: 14px; line-height: 1.6; }
+  .answer .cite { font-family: var(--mono); font-size: 12px; background: var(--chip); padding: 1px 4px;
+                  border-radius: 4px; color: var(--accent); }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 14px; }
+  .metric { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .metric b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .metric span { color: var(--muted); font-size: 12px; }
+  .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip { background: var(--chip); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+  .cites { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+  .cites li { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 13.5px; }
+  .cites code { font-family: var(--mono); color: var(--accent); }
+  .muted { color: var(--muted); font-size: 13px; }
+  pre { font-family: var(--mono); font-size: 12px; overflow-x: auto; background: var(--bg);
+        border-radius: 8px; padding: 10px; margin: 8px 0 0; }
+  .side { display: grid; gap: 18px; align-content: start; }
+  .err { color: var(--bad); margin-top: 10px; white-space: pre-wrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  td, th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: right; }
+  td:first-child, th:first-child { text-align: left; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Enterprise GraphRAG Console</h1>
+  <div class="meta">
+    <span id="health">checking…</span>
+    <input id="apikey" type="password" placeholder="API key (optional)" style="width:180px;padding:5px 8px" />
+    <a href="/docs" style="color:var(--accent)">API docs</a>
+  </div>
+</header>
+
+<main>
+  <div style="display:grid;gap:18px;align-content:start">
+    <section>
+      <h2>Ask</h2>
+      <textarea id="q" rows="3" placeholder="e.g. Who is the executive accountable for the vendor that hosts the platform behind the Customer 360 dashboard?"></textarea>
+      <div class="row">
+        <select id="mode">
+          <option value="hybrid">Hybrid (vector + graph)</option>
+          <option value="vector">Vector only</option>
+          <option value="graph">Graph only</option>
+        </select>
+        <label class="inline">hops <input id="hops" type="number" min="1" max="4" value="2" style="width:60px" /></label>
+        <label class="inline"><input id="evaluate" type="checkbox" checked /> Ragas eval + self-correct</label>
+        <button id="ask">Ask</button>
+      </div>
+      <div id="qerr" class="err"></div>
+      <div id="result" hidden>
+        <div class="metrics" id="metrics"></div>
+        <div class="answer" id="answer"></div>
+        <div class="chips" id="seeds"></div>
+        <details><summary>Citations</summary><ul class="cites" id="cites"></ul></details>
+        <details><summary>Execution trace</summary><pre id="trace"></pre></details>
+      </div>
+    </section>
+
+    <section>
+      <h2>Benchmark: vector RAG vs GraphRAG</h2>
+      <div class="row" style="margin-top:0">
+        <label class="inline">items <input id="blimit" type="number" min="1" placeholder="all" style="width:80px" /></label>
+        <button id="bench">Run benchmark</button>
+        <button id="brefresh" class="secondary">Refresh</button>
+      </div>
+      <div id="berr" class="err"></div>
+      <div id="bruns" style="margin-top:12px"></div>
+    </section>
+  </div>
+
+  <div class="side">
+    <section>
+      <h2>Ingest document</h2>
+      <input id="dtitle" placeholder="Title" />
+      <textarea id="dcontent" rows="8" placeholder="Paste document text (Markdown or plain text)" style="margin-top:8px"></textarea>
+      <div class="row"><button id="ingest">Ingest</button></div>
+      <div id="dmsg" class="muted" style="margin-top:8px"></div>
+    </section>
+    <section>
+      <h2>Knowledge base</h2>
+      <div id="stats" class="muted">—</div>
+      <div id="docs" style="margin-top:10px"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+$("apikey").value = store.get("graphrag_api_key") || "";
+$("apikey").addEventListener("change", e => store.set("graphrag_api_key", e.target.value));
+
+async function api(path, opts = {}) {
+  const headers = { "Content-Type": "application/json" };
+  const key = $("apikey").value.trim();
+  if (key) headers["X-API-Key"] = key;
+  const res = await fetch(path, { ...opts, headers });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail ? JSON.stringify(body.detail) : res.statusText);
+  return body;
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const fmt = (v) => v == null ? "—" : (typeof v === "number" ? v.toFixed(2) : v);
+const cls = (v, good = .8, ok = .6) => v == null ? "" : v >= good ? "good" : v >= ok ? "warn" : "bad";
+
+async function health() {
+  try {
+    const h = await (await fetch("/health")).json();
+    $("health").textContent = h.status === "ok"
+      ? `● healthy · eval: ${h.evaluation_engine}` : `● ${h.status}: ${h.error || JSON.stringify(h.checks)}`;
+    $("health").className = h.status === "ok" ? "good" : "bad";
+  } catch { $("health").textContent = "● unreachable"; $("health").className = "bad"; }
+}
+
+async function ask() {
+  const query = $("q").value.trim();
+  if (!query) return;
+  $("ask").disabled = true; $("qerr").textContent = ""; $("ask").textContent = "Thinking…";
+  try {
+    const r = await api("/api/query", { method: "POST", body: JSON.stringify({
+      query, mode: $("mode").value, max_hops: +$("hops").value || null,
+      evaluate: $("evaluate").checked, include_trace: true }) });
+    const ev = r.evaluation || {};
+    $("metrics").innerHTML = [
+      ["faithfulness", ev.faithfulness, cls(ev.faithfulness)],
+      ["context precision", ev.context_precision, cls(ev.context_precision, .7, .4)],
+      ["self-corrections", r.attempts, r.attempts ? "warn" : ""],
+      ["latency (s)", r.latency_ms / 1000, ""],
+    ].map(([n, v, c]) => `<div class="metric"><b class="${c}">${fmt(v)}</b><span>${n}</span></div>`).join("");
+    $("answer").innerHTML = esc(r.answer).replace(/\[(S\d+|G\d+)\]/g, '<span class="cite">$1</span>');
+    $("seeds").innerHTML = (r.seed_entities || []).map(e => `<span class="chip">${esc(e.name)} · ${esc(e.type)}</span>`).join("");
+    $("cites").innerHTML = (r.citations || []).map(c => c.fact
+      ? `<li><code>${c.label}</code> <span class="muted">graph · hop ${c.hop}</span><br>${esc(c.fact)}</li>`
+      : `<li><code>${c.label}</code> <b>${esc(c.title)}</b> <span class="muted">${esc(c.retriever)}</span><br>${esc(c.snippet)}…</li>`).join("");
+    $("trace").textContent = JSON.stringify(r.trace, null, 2);
+    $("result").hidden = false;
+  } catch (e) { $("qerr").textContent = e.message; }
+  finally { $("ask").disabled = false; $("ask").textContent = "Ask"; }
+}
+
+async function ingest() {
+  const title = $("dtitle").value.trim(), content = $("dcontent").value.trim();
+  if (!title || !content) { $("dmsg").textContent = "Title and content are required."; return; }
+  $("ingest").disabled = true; $("dmsg").textContent = "Chunking, embedding and extracting graph…";
+  try {
+    const r = await api("/api/documents", { method: "POST", body: JSON.stringify({ title, content }) });
+    $("dmsg").textContent = `✓ ${r.chunks} chunks · ${r.entities} entities · ${r.relations} relations (${r.seconds}s)`;
+    $("dcontent").value = ""; refreshKB();
+  } catch (e) { $("dmsg").textContent = "✗ " + e.message; }
+  finally { $("ingest").disabled = false; }
+}
+
+async function refreshKB() {
+  try {
+    const s = await api("/api/stats");
+    const pg = s.postgres || {}, neo = s.neo4j || {};
+    $("stats").innerHTML = `${pg.documents ?? "?"} docs · ${pg.chunks ?? "?"} chunks · ${neo.entities ?? "?"} entities · ${neo.relations ?? "?"} relations<br>avg faithfulness: ${fmt(pg.avg_faithfulness)} over ${pg.queries ?? 0} queries`;
+    const docs = await api("/api/documents?limit=20");
+    $("docs").innerHTML = docs.map(d => `<div class="row" style="margin-top:6px;justify-content:space-between">
+      <span>${esc(d.title)} <span class="muted">(${d.chunk_count})</span></span>
+      <button class="secondary" data-del="${esc(d.id)}" style="padding:3px 10px">✕</button></div>`).join("") || '<span class="muted">No documents yet.</span>';
+    document.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+      if (!confirm("Delete this document from both stores?")) return;
+      await api(`/api/documents/${encodeURIComponent(b.dataset.del)}`, { method: "DELETE" }); refreshKB();
+    });
+  } catch (e) { $("stats").textContent = e.message; }
+}
+
+function runTable(summary) {
+  const pm = summary?.per_mode || {}, cmp = summary?.comparison || {};
+  const rows = [["multi-hop accuracy", "multi_hop_accuracy"], ["answer accuracy", "answer_accuracy"],
+    ["faithfulness", "faithfulness"], ["context precision", "context_precision"],
+    ["hallucination rate", "hallucination_rate"], ["avg latency (ms)", "avg_latency_ms"]];
+  const modes = Object.keys(pm);
+  let html = `<table><tr><th></th>${modes.map(m => `<th>${m}</th>`).join("")}</tr>`;
+  html += rows.map(([n, k]) => `<tr><td>${n}</td>${modes.map(m => `<td>${fmt(pm[m][k])}</td>`).join("")}</tr>`).join("");
+  html += "</table>";
+  if (cmp.baseline) html += `<div class="chips">
+    <span class="chip">multi-hop accuracy ${cmp.multi_hop_accuracy_improvement_pct ?? "—"}% vs vector</span>
+    <span class="chip">hallucinations −${cmp.hallucination_reduction_pct ?? "—"}%</span></div>`;
+  return html;
+}
+
+async function refreshRuns() {
+  try {
+    const runs = await api("/api/benchmarks?limit=5");
+    $("bruns").innerHTML = runs.map(r => `<details ${r.status === "completed" ? "open" : ""}><summary>
+      ${new Date(r.created_at).toLocaleString()} · ${r.status}</summary>
+      ${r.status === "completed" ? runTable(r.summary) : r.error ? `<div class="err">${esc(r.error)}</div>` : '<span class="muted">running…</span>'}
+      </details>`).join("") || '<span class="muted">No runs yet.</span>';
+  } catch (e) { $("berr").textContent = e.message; }
+}
+
+async function bench() {
+  $("berr").textContent = "";
+  try {
+    const limit = +$("blimit").value || null;
+    await api("/api/benchmarks", { method: "POST", body: JSON.stringify({ limit }) });
+    refreshRuns();
+  } catch (e) { $("berr").textContent = e.message; }
+}
+
+$("ask").onclick = ask;
+$("q").addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(); });
+$("ingest").onclick = ingest;
+$("bench").onclick = bench;
+$("brefresh").onclick = refreshRuns;
+health(); refreshKB(); refreshRuns();
+</script>
+</body>
+</html>
